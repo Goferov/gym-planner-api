@@ -17,6 +17,7 @@ class Exercise extends Model
         'name',
         'description',
         'video_url',
+        'user_id',
     ];
 
     public function planDayExercises(): HasMany
