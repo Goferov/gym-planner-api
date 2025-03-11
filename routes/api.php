@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ExerciseController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,9 @@ Route::post('/register', [AuthController::class, 'register']);
 
 
 // Exercises
-
 Route::apiResource('exercises', ExerciseController::class)
+    ->middleware(['auth:api', 'throttle:api']);
+
+// Clients
+Route::apiResource('clients', ClientController::class)
     ->middleware(['auth:api', 'throttle:api']);

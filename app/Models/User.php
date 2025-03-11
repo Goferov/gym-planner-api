@@ -24,6 +24,7 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'password',
         'role',
+        'trainer_id',
     ];
 
     /**
@@ -64,6 +65,17 @@ class User extends Authenticatable implements JWTSubject
         )
             ->withTimestamps()
             ->withPivot(['assigned_at', 'active']);
+    }
+
+
+    public function trainer()
+    {
+        return $this->belongsTo(User::class, 'trainer_id');
+    }
+
+    public function clients()
+    {
+        return $this->hasMany(User::class, 'trainer_id');
     }
 
 
