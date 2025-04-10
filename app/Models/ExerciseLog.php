@@ -19,6 +19,9 @@ class ExerciseLog extends Model
         'actual_reps',
         'weight_used',
         'notes',
+        'completed',
+        'difficulty_reported',
+        'difficulty_comment',
     ];
 
 

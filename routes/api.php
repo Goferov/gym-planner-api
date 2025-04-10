@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ExerciseController;
+use App\Http\Controllers\Api\ExerciseLogController;
 use App\Http\Controllers\Api\PlanController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,4 +35,11 @@ Route::post('/plans/{plan}/assign', [PlanController::class, 'assignPlan'])
     ->middleware(['auth:api']);
 
 Route::delete('/plans/{plan}/unassign', [PlanController::class, 'unassignPlan'])
+    ->middleware(['auth:api']);
+
+// Exercise Logs
+Route::post('/exercise-logs/{exerciseLog}/mark-complete', [ExerciseLogController::class, 'markComplete'])
+    ->middleware(['auth:api']);
+
+Route::post('/exercise-logs/{exerciseLog}/report-difficulty', [ExerciseLogController::class, 'reportDifficulty'])
     ->middleware(['auth:api']);
