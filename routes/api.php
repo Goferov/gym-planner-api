@@ -23,6 +23,10 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::apiResource('exercises', ExerciseController::class)
     ->middleware(['auth:api', 'throttle:api']);
 
+Route::get('/muscle-groups', [ExerciseController::class, 'muscleGroups'])
+    ->middleware(['auth:api', 'throttle:api']);
+
+
 // Clients
 Route::apiResource('clients', ClientController::class)
     ->middleware(['auth:api', 'throttle:api']);

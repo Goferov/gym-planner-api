@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\ExerciseResource;
+use App\Http\Resources\MuscleGroupResource;
 use App\Models\Exercise;
 use App\Http\Controllers\Controller;
+use App\Models\MuscleGroup;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +29,7 @@ class ExerciseController extends Controller
         $query = Exercise::with('muscleGroups');
 
         $query->where(function ($q) use ($user) {
-            $q->where('user_id', 0);
+            $q->where('user_id', 1);
             if ($user) {
                 $q->orWhere('user_id', $user->id);
             }
@@ -123,5 +125,11 @@ class ExerciseController extends Controller
 
         $exercise->delete();
         return response(status: 204);
+    }
+
+    public function muscleGroups()
+    {
+        $muscleGroups = MuscleGroup::all();
+        return MuscleGroupResource::collection($muscleGroups);
     }
 }
