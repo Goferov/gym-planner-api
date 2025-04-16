@@ -99,6 +99,7 @@ class PlanController extends Controller
         $this->authorize('view', $plan);
 
         $plan->load('planDays.exercises');
+        $plan->load('clients');
         return new PlanResource($plan);
     }
 

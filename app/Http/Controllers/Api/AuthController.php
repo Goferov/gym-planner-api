@@ -40,6 +40,8 @@ class AuthController extends Controller
             ]);
         }
 
+        User::where('id', auth()->id())->update(['last_login_at' => now()]);
+
         return response()->json([
             'message' => 'User logged in successfully',
             'token'   => $token,
