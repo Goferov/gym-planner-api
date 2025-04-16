@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\ExerciseLogController;
 use App\Http\Controllers\Api\PlanController;
@@ -17,6 +18,19 @@ Route::post('/logout', [AuthController::class, 'logout'])
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+
+// Dashboard
+Route::middleware(['auth:api', 'throttle:api'])
+    ->prefix('dashboard')
+    ->group(function () {
+        Route::get('/metrics',  [DashboardController::class, 'metrics']);
+        Route::get('/performance', [DashboardController::class, 'performance']);
+        Route::get('/recent-clients', [DashboardController::class, 'recentClients']);
+        Route::get('/activity', [DashboardController::class, 'activity']);
+
+        Route::get('/users/{client}/metrics',   [DashboardController::class,'userMetrics']);
+        Route::get('/users/{client}/performance',[DashboardController::class,'userPerformance']);
+    });
 
 
 // Exercises
