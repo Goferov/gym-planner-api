@@ -19,6 +19,9 @@ class ClientResource extends JsonResource
             'role' => $this->role,
             'name' => $this->name,
             'email' => $this->email,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'notes' => $this->notes,
             'trainer_id' => $this->trainer_id,
             'trainer' => $this->whenLoaded('trainer', function () {
                 return [

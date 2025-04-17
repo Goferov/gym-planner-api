@@ -36,15 +36,22 @@ class ClientController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
+            'notes' => 'nullable|string',
+            'address' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
         ]);
 
         $trainer = auth()->user();
+
         $client = User::create([
             'name' => $request->input('name'),
             'email' => $request->input('email'),
             'password' => Hash::make($request->input('password')),
             'role' => 'user',
             'trainer_id' => $trainer->id,
+            'notes' => $request->input('notes'),
+            'address' => $request->input('address'),
+            'phone' => $request->input('phone'),
         ]);
 
         return new ClientResource($client);
@@ -71,14 +78,19 @@ class ClientController extends Controller
             'name' => 'string|max:255',
             'email' => 'email|unique:users,email,' . $client->id . ',id',
             'password' => 'nullable|string|min:6',
+            'notes' => 'nullable|string',
+            'address' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only(['name', 'email']);
+        $data = $request->only(['name', 'email', 'notes', 'address', 'phone']);
+
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->input('password'));
         }
 
         $client->update($data);
+
         return new ClientResource($client);
     }
 
