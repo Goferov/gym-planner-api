@@ -35,4 +35,16 @@ class ExerciseLog extends Model
     {
         return $this->belongsTo(PlanDayExercise::class, 'plan_day_exercise_id');
     }
+
+    public function exercise()
+    {
+        return $this->hasOneThrough(
+            Exercise::class,
+            PlanDayExercise::class,
+            'id',            // PlanDayExercise PK
+            'id',            // Exercise PK
+            'plan_day_exercise_id',
+            'exercise_id'
+        );
+    }
 }

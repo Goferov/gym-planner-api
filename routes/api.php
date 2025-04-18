@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExerciseController;
 use App\Http\Controllers\Api\ExerciseLogController;
 use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\PlanUserController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -32,6 +33,17 @@ Route::middleware(['auth:api', 'throttle:api'])
         Route::get('/users/{client}/performance',[DashboardController::class,'userPerformance']);
     });
 
+
+// Plan User
+Route::middleware('auth:api')->group(function () {
+    Route::get('/plan-user',   [PlanUserController::class,'index']);
+    Route::post('/plan-user/{planUser}/start',   [PlanUserController::class,'start']);
+    Route::get('/plan-user/{planUser}/history',   [PlanUserController::class,'history']);
+    Route::get  ('/plan-user/{planUser}',        [PlanUserController::class,'show']);
+    Route::get  ('/plan-user/{planUser}/day',        [PlanUserController::class,'showDay']);
+    Route::post  ('/plan-user/{planUser}/day/start',        [PlanUserController::class,'startDay']);
+    Route::get  ('/plan-user/{planUser}/day/summary',        [PlanUserController::class,'summary']);
+});
 
 // Exercises
 Route::apiResource('exercises', ExerciseController::class)

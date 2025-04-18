@@ -70,6 +70,10 @@ class User extends Authenticatable implements JWTSubject
             ->withPivot(['assigned_at', 'active']);
     }
 
+    public function assignedPlans()
+    {
+        return $this->hasMany(\App\Models\PlanUser::class, 'user_id');
+    }
 
     public function trainer()
     {

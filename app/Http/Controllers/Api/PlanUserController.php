@@ -1,0 +1,196 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\AssignedPlanResource;
+use App\Http\Resources\ExerciseLogResource;
+use App\Http\Resources\PlanDayExerciseLogResource;
+use App\Models\ExerciseLog;
+use App\Models\PlanDay;
+use App\Models\PlanUser;
+use Carbon\Carbon;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+
+class PlanUserController extends Controller
+{
+    use AuthorizesRequests;
+
+    public function index(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->role === 'trainer' && $request->filled('user_id')) {
+            $assigned = PlanUser::where('user_id', $request->input('user_id'))
+                ->with('plan')
+                ->get();
+        } else {
+            $assigned = $user->assignedPlans()->with('plan')->get();
+        }
+
+        return AssignedPlanResource::collection($assigned);
+    }
+
+
+    public function start(PlanUser $planUser)
+    {
+        $this->authorize('start', $planUser);
+
+        $planUser->update([
+            'started_at' => now(),
+            'active'     => true,
+        ]);
+
+        return response()->json(['message'=>'Plan started']);
+    }
+
+    public function show(PlanUser $planUser)
+    {
+        $this->authorize('view', $planUser);
+
+        $planUser->tryAutoComplete();
+
+        $planUser->load([
+            'plan.planDays.exercises.logs' => fn($q)=>$q->where('plan_user_id',$planUser->id),
+            'plan.planDays.exercises.exercise',
+            'plan.clients',
+        ]);
+
+        return response()->json([
+            'plan_user_id' => $planUser->id,
+            'started_at'   => $planUser->started_at,
+            'completed_at' => $planUser->completed_at,
+            'progress'     => $planUser->progress,
+            'plan'         => new \App\Http\Resources\PlanResource($planUser->plan),
+        ]);
+    }
+
+
+    public function showDay(PlanUser $planUser, Request $request)
+    {
+        $this->authorize('view', $planUser);
+
+        $date     = $request->input('date', Carbon::today()->toDateString());
+        $dayModel = $this->resolvePlanDay($planUser, $date);
+
+        if (!$dayModel) {
+            return response()->json(['message'=>'No training planned for this date'], 404);
+        }
+
+        $dayModel->load(['exercises.logs' => fn($q)=>$q->where('plan_user_id',$planUser->id),
+            'exercises.exercise']);
+
+        return response()->json([
+            'date'      => $date,
+            'week'      => $dayModel->week_number,
+            'day'       => $dayModel->day_number,
+            'exercises' => PlanDayExerciseLogResource::collection($dayModel->exercises),
+        ]);
+    }
+
+    public function startDay(PlanUser $planUser, Request $request)
+    {
+        $this->authorize('view', $planUser);
+
+        $date     = $request->input('date', Carbon::today()->toDateString());
+        $dayModel = $this->resolvePlanDay($planUser, $date);
+
+        if (!$dayModel) {
+            return response()->json(['message'=>'No training scheduled for this date'], 404);
+        }
+
+        foreach ($dayModel->exercises as $pde) {
+            ExerciseLog::firstOrCreate([
+                'plan_user_id'         => $planUser->id,
+                'plan_day_exercise_id' => $pde->id,
+                'date'                 => $date,
+            ]);
+        }
+
+        return $this->showDay($planUser, $request);
+    }
+
+    public function summary(PlanUser $planUser, Request $request)
+    {
+        $this->authorize('view', $planUser);
+
+        $date     = $request->input('date', Carbon::today()->toDateString());
+        $dayModel = $this->resolvePlanDay($planUser, $date);
+
+        if (!$dayModel) {
+            return response()->json(['message'=>'No training scheduled'], 404);
+        }
+
+        $total   = $dayModel->exercises->count();
+        $done    = ExerciseLog::where('plan_user_id',$planUser->id)
+            ->whereDate('date',$date)
+            ->where('completed',true)->count();
+
+        $summary = [
+            'date'   => $date,
+            'total'  => $total,
+            'done'   => $done,
+            'progress'=> $total ? round($done*100/$total) : 0,
+            'all_completed' => $total && $total === $done,
+        ];
+
+
+        return response()->json($summary);
+    }
+
+    public function history(PlanUser $planUser)
+    {
+        $this->authorize('view', $planUser);
+
+        $planUser->load([
+            'plan.planDays.exercises.logs' => fn($q) =>
+            $q->where('plan_user_id', $planUser->id),
+            'plan.planDays.exercises.exercise'
+        ]);
+
+        return response()->json([
+            'plan_name' => $planUser->plan->name,
+            'started_at' => $planUser->started_at,
+            'completed_at' => $planUser->completed_at,
+            'progress' => $planUser->progress,
+            'weeks' => $planUser->plan->planDays->groupBy('week_number')->map(function ($days) {
+                return $days->map(function ($day) {
+                    return [
+                        'day_number' => $day->day_number,
+                        'description' => $day->description,
+                        'exercises' => $day->exercises->map(function ($ex) {
+                            $log = $ex->logs->first();
+                            return [
+                                'exercise'   => $ex->exercise->name,
+                                'sets'       => $ex->sets,
+                                'reps'       => $ex->reps,
+                                'completed'  => $log?->completed,
+                                'date'       => $log?->date,
+                                'difficulty' => $log?->difficulty_reported,
+                                'comment'    => $log?->difficulty_comment,
+                            ];
+                        })
+                    ];
+                })->values();
+            })->toArray(),
+        ]);
+    }
+
+    private function resolvePlanDay(PlanUser $pu, string $date): ?PlanDay
+    {
+        if (!$pu->started_at) return null;
+
+        $carbonDate = Carbon::parse($date);
+        $offsetDays = $carbonDate->diffInDays(Carbon::parse($pu->started_at));
+
+        $week = intdiv($offsetDays, 7) + 1;
+        $day  = $offsetDays % 7 + 1;
+
+        return $pu->plan->planDays
+            ->where('week_number',$week)
+            ->where('day_number',$day)
+            ->first();
+    }
+
+}
