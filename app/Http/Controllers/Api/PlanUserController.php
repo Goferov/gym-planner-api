@@ -72,7 +72,11 @@ class PlanUserController extends Controller
         $dayModel = $this->resolvePlanDay($planUser, $date);
 
         if (!$dayModel) {
-            return response()->json(['message'=>'No training planned for this date'], 404);
+            return response()->json([
+                'date'    => $date,
+                'rest'    => true,
+                'message' => 'Rest day – no training planned'
+            ]);
         }
 
         $dayModel->load(['exercises.logs' => fn($q)=>$q->where('plan_user_id',$planUser->id),
@@ -149,20 +153,29 @@ class PlanUserController extends Controller
         return new PlanUserHistoryResource($planUser);
     }
 
-    private function resolvePlanDay(PlanUser $pu, string $date): ?PlanDay
+    private function resolvePlanDay(PlanUser $pu, string $date, bool $skipToNext = false): ?PlanDay
     {
         if (!$pu->started_at) return null;
 
         $carbonDate = Carbon::parse($date);
-        $offsetDays = $carbonDate->diffInDays(Carbon::parse($pu->started_at));
+        $offsetDays = $carbonDate->diffInDays($pu->started_at);
 
         $week = intdiv($offsetDays, 7) + 1;
-        $day  = $offsetDays % 7 + 1;
+        $dayN = $offsetDays % 7 + 1;
 
-        return $pu->plan->planDays
-            ->where('week_number',$week)
-            ->where('day_number',$day)
-            ->first();
+        $weekDays = $pu->plan->planDays
+            ->where('week_number', $week)
+            ->sortBy('day_number')
+            ->values();
+
+        $exact = $weekDays->firstWhere('day_number', $dayN);
+        if ($exact) return $exact;
+
+        if ($skipToNext) {
+            return $weekDays->first(fn($d) => $d->day_number > $dayN);
+        }
+
+        return null;
     }
 
 }
