@@ -12,7 +12,7 @@ class PlanDayExerciseLogResource extends JsonResource
         $log = $this->logs->first();
 
         return [
-            'id'         => $this->id, // ID plan_day_exercise
+            'id'         => $this->id,
             'exercise'   => $this->exercise->name,
             'sets'       => $this->sets,
             'reps'       => $this->reps,

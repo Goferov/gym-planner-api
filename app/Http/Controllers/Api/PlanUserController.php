@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AssignedPlanResource;
 use App\Http\Resources\ExerciseLogResource;
 use App\Http\Resources\PlanDayExerciseLogResource;
+use App\Http\Resources\PlanResource;
+use App\Http\Resources\PlanUserHistoryResource;
+use App\Http\Resources\PlanUserResource;
 use App\Models\ExerciseLog;
 use App\Models\PlanDay;
 use App\Models\PlanUser;
@@ -57,13 +60,7 @@ class PlanUserController extends Controller
             'plan.clients',
         ]);
 
-        return response()->json([
-            'plan_user_id' => $planUser->id,
-            'started_at'   => $planUser->started_at,
-            'completed_at' => $planUser->completed_at,
-            'progress'     => $planUser->progress,
-            'plan'         => new \App\Http\Resources\PlanResource($planUser->plan),
-        ]);
+        return new PlanUserResource($planUser);
     }
 
 
@@ -149,32 +146,7 @@ class PlanUserController extends Controller
             'plan.planDays.exercises.exercise'
         ]);
 
-        return response()->json([
-            'plan_name' => $planUser->plan->name,
-            'started_at' => $planUser->started_at,
-            'completed_at' => $planUser->completed_at,
-            'progress' => $planUser->progress,
-            'weeks' => $planUser->plan->planDays->groupBy('week_number')->map(function ($days) {
-                return $days->map(function ($day) {
-                    return [
-                        'day_number' => $day->day_number,
-                        'description' => $day->description,
-                        'exercises' => $day->exercises->map(function ($ex) {
-                            $log = $ex->logs->first();
-                            return [
-                                'exercise'   => $ex->exercise->name,
-                                'sets'       => $ex->sets,
-                                'reps'       => $ex->reps,
-                                'completed'  => $log?->completed,
-                                'date'       => $log?->date,
-                                'difficulty' => $log?->difficulty_reported,
-                                'comment'    => $log?->difficulty_comment,
-                            ];
-                        })
-                    ];
-                })->values();
-            })->toArray(),
-        ]);
+        return new PlanUserHistoryResource($planUser);
     }
 
     private function resolvePlanDay(PlanUser $pu, string $date): ?PlanDay
