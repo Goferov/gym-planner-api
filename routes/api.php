@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\DashboardController;
@@ -73,3 +74,10 @@ Route::post('/exercise-logs/{exerciseLog}/mark-complete', [ExerciseLogController
 
 Route::post('/exercise-logs/{exerciseLog}/report-difficulty', [ExerciseLogController::class, 'reportDifficulty'])
     ->middleware(['auth:api']);
+
+// Me
+
+Route::middleware('auth:api')->group(function () {
+    Route::put('/me/profile',  [AccountController::class, 'updateProfile']);
+    Route::put('/me/password', [AccountController::class, 'updatePassword']);
+});
