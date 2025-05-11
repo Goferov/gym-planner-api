@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\ClientResource;
+use App\Mail\ClientCredentialsMail;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 
 class ClientController extends Controller
@@ -42,6 +44,7 @@ class ClientController extends Controller
         ]);
 
         $trainer = auth()->user();
+        $plain = $request->input('password');
 
         $client = User::create([
             'name' => $request->input('name'),
@@ -53,7 +56,7 @@ class ClientController extends Controller
             'address' => $request->input('address'),
             'phone' => $request->input('phone'),
         ]);
-
+        $this->sendCredentials($client, $plain);
         return new ClientResource($client);
     }
 
@@ -86,7 +89,9 @@ class ClientController extends Controller
         $data = $request->only(['name', 'email', 'notes', 'address', 'phone']);
 
         if ($request->filled('password')) {
+            $plain = $request->input('password');
             $data['password'] = Hash::make($request->input('password'));
+            $this->sendCredentials($client, $plain);
         }
 
         $client->update($data);
@@ -104,4 +109,12 @@ class ClientController extends Controller
         $client->delete();
         return response(status: 204);
     }
+
+    private function sendCredentials(User $client, string $plainPassword): void
+    {
+        Mail::to($client->email)->send(
+            new ClientCredentialsMail($client, $plainPassword)
+        );
+    }
+
 }
