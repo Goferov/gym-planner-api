@@ -114,7 +114,8 @@ class PlanUserController extends Controller
         $this->authorize('view', $planUser);
 
         $date     = $request->input('date', Carbon::today()->toDateString());
-        $dayModel = $this->resolvePlanDay($planUser, $date);
+        ['model' => $dayModel, 'date' => $scheduledDate] =
+            $this->resolvePlanDay($planUser, $date);
 
         if (!$dayModel) {
             return response()->json(['message'=>'No training scheduled for this date'], 404);
@@ -124,7 +125,7 @@ class PlanUserController extends Controller
             ExerciseLog::firstOrCreate([
                 'plan_user_id'         => $planUser->id,
                 'plan_day_exercise_id' => $pde->id,
-                'date'                 => $date,
+                'date'                 => $scheduledDate->toDateString(),
             ]);
         }
 
@@ -135,29 +136,33 @@ class PlanUserController extends Controller
     {
         $this->authorize('view', $planUser);
 
-        $date     = $request->input('date', Carbon::today()->toDateString());
-        $dayModel = $this->resolvePlanDay($planUser, $date);
+        $date = $request->input('date', Carbon::today()->toDateString());
+
+        ['model' => $dayModel, 'date' => $scheduledDate] =
+            $this->resolvePlanDay($planUser, $date);
 
         if (!$dayModel) {
-            return response()->json(['message'=>'No training scheduled'], 404);
+            return response()->json(['message' => 'No training scheduled'], 404);
         }
 
-        $total   = $dayModel->exercises->count();
-        $done    = ExerciseLog::where('plan_user_id',$planUser->id)
-            ->whereDate('date',$date)
-            ->where('completed',true)->count();
+        $total = $dayModel->exercises->count();
+
+        $done  = ExerciseLog::where('plan_user_id', $planUser->id)
+            ->whereDate('date', $scheduledDate)
+            ->where('completed', true)
+            ->count();
 
         $summary = [
-            'date'   => $date,
-            'total'  => $total,
-            'done'   => $done,
-            'progress'=> $total ? round($done*100/$total) : 0,
+            'date'          => $scheduledDate->toDateString(),
+            'total'         => $total,
+            'done'          => $done,
+            'progress'      => $total ? round($done * 100 / $total) : 0,
             'all_completed' => $total && $total === $done,
         ];
 
-
         return response()->json($summary);
     }
+
 
     public function history(PlanUser $planUser)
     {
