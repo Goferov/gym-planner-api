@@ -55,19 +55,30 @@ class ExerciseController extends Controller
         $this->authorize('create', Exercise::class);
 
         $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'video_url' => 'nullable|url',
-            'muscle_group_ids' => 'array',
-            'muscle_group_ids.*' => 'integer|exists:muscle_groups,id',
+            'name'              => 'required|string|max:255',
+            'description'       => 'nullable|string',
+            'video_url'         => 'nullable|url',
+            'image'             => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048',
+            'preferred_media'   => 'nullable|in:image,video',
+            'muscle_group_ids'  => 'array',
+            'muscle_group_ids.*'=> 'integer|exists:muscle_groups,id',
         ]);
+
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')
+                ->store('exercises', 'public');
+        }
 
         $user = Auth::user();
         $exercise = Exercise::create([
-            'name' => $request->input('name'),
-            'description' => $request->input('description'),
-            'video_url' => $request->input('video_url'),
-            'user_id' => $user->id,
+            'name'            => $request->input('name'),
+            'description'     => $request->input('description'),
+            'video_url'       => $request->input('video_url'),
+            'image_path'      => $imagePath,
+            'preferred_media' => $request->input('preferred_media','image'),
+            'user_id'         => $user->id,
         ]);
 
         if ($request->has('muscle_group_ids')) {
@@ -94,19 +105,34 @@ class ExerciseController extends Controller
     {
         $this->authorize('update', $exercise);
 
+
         $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'video_url' => 'nullable|url',
-            'muscle_group_ids' => 'array',
-            'muscle_group_ids.*' => 'integer|exists:muscle_groups,id',
+            'name'              => 'required|string|max:255',
+            'description'       => 'nullable|string',
+            'video_url'         => 'nullable|url',
+            'image'             => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048',
+            'preferred_media'   => 'nullable|in:image,video',
+            'muscle_group_ids'  => 'array',
+            'muscle_group_ids.*'=> 'integer|exists:muscle_groups,id',
         ]);
 
-        $exercise->update([
-            'name' => $request->input('name'),
-            'description' => $request->input('description'),
-            'video_url' => $request->input('video_url'),
-        ]);
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')
+                ->store('exercises', 'public');
+        }
+
+
+        $data = [
+            'name'            => $request->input('name'),
+            'description'     => $request->input('description'),
+            'video_url'       => $request->input('video_url'),
+            'preferred_media' => $request->input('preferred_media','image'),
+        ];
+        if ($imagePath) $data['image_path'] = $imagePath;
+
+        $exercise->update($data);
 
         $exercise->muscleGroups()->sync(
             $request->input('muscle_group_ids', [])

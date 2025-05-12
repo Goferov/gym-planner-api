@@ -72,28 +72,47 @@ class PlanUserController extends Controller
             $request->input('date', Carbon::today()->toDateString())
         )->startOfDay();
 
-        ['model'=>$dayModel] = $this->resolvePlanDay($planUser,$today->toDateString());
+        ['model' => $dayModel] = $this->resolvePlanDay($planUser, $today->toDateString());
 
         $pending = $this->getPendingDays($planUser, $today);
 
+        /* -----      a) DZIEŃ ZAPLANOWANY      ----- */
         if ($dayModel) {
             $dayModel->load([
-                'exercises.logs' => fn($q)=>$q->where('plan_user_id',$planUser->id),
+                'exercises.logs' => fn($q) => $q->where('plan_user_id', $planUser->id),
                 'exercises.exercise'
             ]);
 
+            // sprawdź, czy ukończony
+            if ($this->isDayCompleted($planUser, $dayModel)) {
+                ['model' => $nextDay, 'date' => $nextDate] =
+                    $this->resolvePlanDay($planUser, $today->toDateString(), true);
+
+                return response()->json([
+                    'rest'               => true,
+                    'all_completed'      => true,
+                    'message'            => 'Dzisiejszy trening wykonany w całości 🎉',
+                    'next_training_date' => $nextDate?->toDateString(),
+                    'next_week_number'   => $nextDay?->week_number,
+                    'next_day_number'    => $nextDay?->day_number,
+                    'pending_days'       => $pending,
+                ]);
+            }
+
+            // jeszcze nie wszystko zrobione
             return response()->json([
-                'date'          => $today->toDateString(),
-                'week'          => $dayModel->week_number,
-                'day'           => $dayModel->day_number,
-                'exercises'     => PlanDayExerciseLogResource::collection($dayModel->exercises),
-                'pending_days'  => $pending,
-                'rest'          => false,
+                'date'         => $today->toDateString(),
+                'week'         => $dayModel->week_number,
+                'day'          => $dayModel->day_number,
+                'exercises'    => PlanDayExerciseLogResource::collection($dayModel->exercises),
+                'pending_days' => $pending,
+                'rest'         => false,
             ]);
         }
 
-        ['model'=>$nextDay,'date'=>$nextDate] =
-            $this->resolvePlanDay($planUser,$today->toDateString(),true);
+        /* -----      b) REST-DAY (brak treningu)      ----- */
+        ['model' => $nextDay, 'date' => $nextDate] =
+            $this->resolvePlanDay($planUser, $today->toDateString(), true);
 
         return response()->json([
             'rest'               => true,
@@ -176,6 +195,15 @@ class PlanUserController extends Controller
 
         return new PlanUserHistoryResource($planUser);
     }
+    private function isDayCompleted(PlanUser $pu, PlanDay $day): bool
+    {
+        $total = $day->exercises->count();
+        $done  = $day->exercises->flatMap->logs
+            ->where('plan_user_id', $pu->id)
+            ->where('completed', true)->count();
+
+        return $total && $done === $total;
+    }
 
     /**
      * @return array{model: ?PlanDay, date: ?Carbon}  // model = PlanDay lub null, date = data w kalendarzu
@@ -193,30 +221,29 @@ class PlanUserController extends Controller
         $weekN = intdiv($offsetDays, 7) + 1;
         $dayN  = $offsetDays % 7 + 1;
 
-        $weekDays = $pu->plan->planDays
+        // próbujemy dokładne trafienie
+        $exact = $pu->plan->planDays
             ->where('week_number', $weekN)
-            ->sortBy('day_number')
-            ->values();
+            ->firstWhere('day_number', $dayN);
 
-        $exact = $weekDays->firstWhere('day_number', $dayN);
-        if ($exact) {
+        if ($exact && !$this->isDayCompleted($pu, $exact)) {
             return ['model' => $exact, 'date' => $carbonDate];
         }
 
+        /* -------- skipToNext -------- */
         if ($skipToNext) {
-            $nextDayModel = $weekDays->first(fn($d) => $d->day_number > $dayN);
+            $allDays = $pu->plan->planDays
+                ->sortBy(['week_number', 'day_number'])
+                ->values();
 
-            if (!$nextDayModel) {
-                $nextDayModel = $pu->plan->planDays
-                    ->where('week_number', '>', $weekN)
-                    ->sortBy(['week_number', 'day_number'])
-                    ->first();
-            }
+            foreach ($allDays as $d) {
+                $daysOffset = ($d->week_number - 1) * 7 + ($d->day_number - 1);
+                $scheduled  = $start->copy()->addDays($daysOffset);
 
-            if ($nextDayModel) {
-                $daysOffset = ($nextDayModel->week_number - 1) * 7 + ($nextDayModel->day_number - 1);
-                $nextDate   = $start->copy()->addDays($daysOffset);
-                return ['model' => $nextDayModel, 'date' => $nextDate];
+                if ($scheduled->lte($carbonDate)) continue;              // przeszłość
+                if ($this->isDayCompleted($pu, $d)) continue;            // już zrobiony
+
+                return ['model' => $d, 'date' => $scheduled];
             }
         }
 

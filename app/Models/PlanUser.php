@@ -38,6 +38,11 @@ class PlanUser extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function scheduledDays()
+    {
+        return $this->hasMany(PlanDayUser::class);
+    }
+
     public function getProgressAttribute(): int
     {
         $total = $this->plan->planDays->flatMap->exercises->count();

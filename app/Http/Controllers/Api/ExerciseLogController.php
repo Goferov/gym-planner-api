@@ -16,12 +16,13 @@ class ExerciseLogController extends Controller
     {
         $this->authorize('markComplete', $exerciseLog);
 
-        $request->validate([
-            'completed' => 'boolean',
-        ]);
+        $request->validate(['completed' => 'boolean']);
 
         $exerciseLog->completed = $request->input('completed', true);
         $exerciseLog->save();
+
+        // ► sprawdź, czy cały dzień został ukończony
+        $this->tryAutoCompleteDay($exerciseLog);
 
         return response()->json([
             'message' => 'Exercise marked as complete',
@@ -46,5 +47,25 @@ class ExerciseLogController extends Controller
             'message' => 'Difficulty reported successfully',
             'exercise_log' => $exerciseLog
         ]);
+    }
+
+    /* -------- helper: czy domknąć dzień -------- */
+    private function tryAutoCompleteDay(ExerciseLog $log): void
+    {
+        $planUser = $log->planUser;               // relacja belongsTo w modelu ExerciseLog
+        $planDay  = $log->planDayExercise->planDay;
+
+        $total = $planDay->exercises->count();
+
+        $done  = $planDay->exercises->flatMap->logs
+            ->where('plan_user_id', $planUser->id)
+            ->where('date',        $log->date)
+            ->where('completed',   true)
+            ->count();
+
+        if ($total && $done === $total) {
+            // nic nie zapisujemy w DB, bo status „ukończony”
+            // wykrywa showDay() – ale można tu triggerować event/notyfikację
+        }
     }
 }

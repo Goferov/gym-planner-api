@@ -18,7 +18,9 @@ class ExerciseResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'video_url' => $this->video_url,
+            'video_url'       => $this->video_url,
+            'image_url'       => $this->image_path ? asset('storage/'.$this->image_path) : null,
+            'preferred_media' => $this->preferred_media,
             'is_system_exercise' => $this->user_id === 1,
             'user_id' => $this->user_id,
             'muscle_groups' => $this->muscleGroups

@@ -17,6 +17,7 @@ class Exercise extends Model
         'name',
         'description',
         'video_url',
+        'image_path',
         'user_id',
     ];
 
