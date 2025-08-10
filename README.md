@@ -50,7 +50,6 @@ A RESTful API for a personal training platform where **trainers** build workout 
 - Eloquent, Policies, Form Requests
 - PHPUnit
 
-> ⚠️ We also use a helper schedule table (`plan_day_user`) to materialize per-user calendar dates for each plan day. It simplifies “today/next/missed” logic.
 
 ---
 
