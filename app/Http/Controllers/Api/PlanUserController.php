@@ -72,21 +72,24 @@ class PlanUserController extends Controller
             $request->input('date', Carbon::today()->toDateString())
         )->startOfDay();
 
+
         ['model' => $dayModel] = $this->resolvePlanDay($planUser, $today->toDateString());
 
         $pending = $this->getPendingDays($planUser, $today);
 
-        /* -----      a) DZIEŃ ZAPLANOWANY      ----- */
+
         if ($dayModel) {
             $dayModel->load([
                 'exercises.logs' => fn($q) => $q->where('plan_user_id', $planUser->id),
                 'exercises.exercise'
             ]);
 
-            // sprawdź, czy ukończony
             if ($this->isDayCompleted($planUser, $dayModel)) {
                 ['model' => $nextDay, 'date' => $nextDate] =
                     $this->resolvePlanDay($planUser, $today->toDateString(), true);
+
+
+
 
                 return response()->json([
                     'rest'               => true,
@@ -99,7 +102,6 @@ class PlanUserController extends Controller
                 ]);
             }
 
-            // jeszcze nie wszystko zrobione
             return response()->json([
                 'date'         => $today->toDateString(),
                 'week'         => $dayModel->week_number,
@@ -110,7 +112,6 @@ class PlanUserController extends Controller
             ]);
         }
 
-        /* -----      b) REST-DAY (brak treningu)      ----- */
         ['model' => $nextDay, 'date' => $nextDate] =
             $this->resolvePlanDay($planUser, $today->toDateString(), true);
 
@@ -155,14 +156,26 @@ class PlanUserController extends Controller
     {
         $this->authorize('view', $planUser);
 
-        $date = $request->input('date', Carbon::today()->toDateString());
+        $date          = $request->input('date', Carbon::today()->toDateString());
+        $scheduledDate = Carbon::parse($date)->startOfDay();
 
-        ['model' => $dayModel, 'date' => $scheduledDate] =
-            $this->resolvePlanDay($planUser, $date);
+
+        if (!$planUser->started_at) {
+            return response()->json(['message' => 'Plan not started yet'], 400);
+        }
+
+        $offsetDays = $scheduledDate->diffInDays($planUser->started_at->copy()->startOfDay());
+        $week       = intdiv($offsetDays, 7) + 1;       // 1-indeksowane
+        $day        = $offsetDays % 7 + 1;              // 1-indeksowane
+
+        $dayModel = $planUser->plan->planDays
+            ->where('week_number', $week)
+            ->firstWhere('day_number', $day);
 
         if (!$dayModel) {
             return response()->json(['message' => 'No training scheduled'], 404);
         }
+
 
         $total = $dayModel->exercises->count();
 
@@ -181,6 +194,7 @@ class PlanUserController extends Controller
 
         return response()->json($summary);
     }
+
 
 
     public function history(PlanUser $planUser)
@@ -216,12 +230,12 @@ class PlanUserController extends Controller
 
         $start      = $pu->started_at->copy()->startOfDay();
         $carbonDate = Carbon::parse($date)->startOfDay();
-        $offsetDays = $carbonDate->diffInDays($start);
+        $offsetDays = abs($carbonDate->diffInDays($start));
 
         $weekN = intdiv($offsetDays, 7) + 1;
         $dayN  = $offsetDays % 7 + 1;
 
-        // próbujemy dokładne trafienie
+
         $exact = $pu->plan->planDays
             ->where('week_number', $weekN)
             ->firstWhere('day_number', $dayN);
@@ -230,7 +244,6 @@ class PlanUserController extends Controller
             return ['model' => $exact, 'date' => $carbonDate];
         }
 
-        /* -------- skipToNext -------- */
         if ($skipToNext) {
             $allDays = $pu->plan->planDays
                 ->sortBy(['week_number', 'day_number'])
@@ -240,8 +253,8 @@ class PlanUserController extends Controller
                 $daysOffset = ($d->week_number - 1) * 7 + ($d->day_number - 1);
                 $scheduled  = $start->copy()->addDays($daysOffset);
 
-                if ($scheduled->lte($carbonDate)) continue;              // przeszłość
-                if ($this->isDayCompleted($pu, $d)) continue;            // już zrobiony
+                if ($scheduled->lte($carbonDate)) continue;
+                if ($this->isDayCompleted($pu, $d)) continue;
 
                 return ['model' => $d, 'date' => $scheduled];
             }
@@ -281,7 +294,6 @@ class PlanUserController extends Controller
             ];
         }
 
-        // posortuj rosnąco po dacie
         usort($pending, fn($a,$b)=>strcmp($a['scheduled_date'],$b['scheduled_date']));
         return $pending;
     }

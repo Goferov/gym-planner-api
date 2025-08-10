@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExerciseLog;
+use App\Models\PlanDayUser;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,6 @@ class ExerciseLogController extends Controller
         $exerciseLog->completed = $request->input('completed', true);
         $exerciseLog->save();
 
-        // ► sprawdź, czy cały dzień został ukończony
         $this->tryAutoCompleteDay($exerciseLog);
 
         return response()->json([
@@ -41,6 +41,7 @@ class ExerciseLogController extends Controller
 
         $exerciseLog->difficulty_reported = $request->input('difficulty_reported');
         $exerciseLog->difficulty_comment = $request->input('difficulty_comment');
+        $exerciseLog->completed = $request->input('completed', true);
         $exerciseLog->save();
 
         return response()->json([
@@ -52,20 +53,23 @@ class ExerciseLogController extends Controller
     /* -------- helper: czy domknąć dzień -------- */
     private function tryAutoCompleteDay(ExerciseLog $log): void
     {
-        $planUser = $log->planUser;               // relacja belongsTo w modelu ExerciseLog
-        $planDay  = $log->planDayExercise->planDay;
+        $row = PlanDayUser::where([
+            'plan_user_id' =>$log->plan_user_id,
+            'plan_day_id'  =>$log->planDayExercise->plan_day_id,
+            'scheduled_date'=>$log->date,
+        ])->first();
 
-        $total = $planDay->exercises->count();
+        if (!$row || $row->status !== 'pending') return;
 
-        $done  = $planDay->exercises->flatMap->logs
-            ->where('plan_user_id', $planUser->id)
-            ->where('date',        $log->date)
-            ->where('completed',   true)
-            ->count();
+        $total = $row->planDay->exercises->count();
+        $done  = $row->planDay->exercises->flatMap->logs
+            ->where('plan_user_id',$row->plan_user_id)
+            ->where('date',$row->scheduled_date)
+            ->where('completed',true)->count();
 
         if ($total && $done === $total) {
-            // nic nie zapisujemy w DB, bo status „ukończony”
-            // wykrywa showDay() – ale można tu triggerować event/notyfikację
+            $row->update(['status'=>'completed','completed_at'=>now()]);
         }
     }
+
 }
