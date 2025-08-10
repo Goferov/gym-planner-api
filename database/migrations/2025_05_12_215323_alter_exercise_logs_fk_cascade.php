@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1) usuń stary FK
+        // Nie ruszaj FK, jeśli testy lecą na sqlite
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('exercise_logs', function (Blueprint $t) {
             $t->dropForeign('exercise_logs_plan_day_exercise_id_foreign');
-        });
-
-        // 2) dodaj nowy z CASCADE
-        Schema::table('exercise_logs', function (Blueprint $t) {
             $t->foreign('plan_day_exercise_id')
                 ->references('id')->on('plan_day_exercises')
                 ->onDelete('cascade');
@@ -26,11 +26,15 @@ return new class extends Migration
 
     public function down(): void
     {
-        // przy rollbacku: przywróć bez cascade
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('exercise_logs', function (Blueprint $t) {
             $t->dropForeign(['plan_day_exercise_id']);
             $t->foreign('plan_day_exercise_id')
                 ->references('id')->on('plan_day_exercises');
         });
     }
+
 };

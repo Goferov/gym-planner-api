@@ -19,27 +19,27 @@ class DatabaseSeeder extends Seeder
     {
 //        // 1) Kilku userów:
 //        // - 1 admin
-        User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password'),
-            'role' => 'admin',
-        ]);
-//
-        User::factory()->create([
-            'name' => 'Marcin',
-            'email' => 'marcin@innweb.pl',
-            'password' => Hash::make('password'),
-            'role' => 'trainer',
-        ]);
+//        User::factory()->create([
+//            'name' => 'Admin User',
+//            'email' => 'admin@example.com',
+//            'password' => Hash::make('password'),
+//            'role' => 'admin',
+//        ]);
+////
+//        User::factory()->create([
+//            'name' => 'Marcin',
+//            'email' => 'marcin@innweb.pl',
+//            'password' => Hash::make('password'),
+//            'role' => 'trainer',
+//        ]);
 
 //        // - 2 trenerów
 //        $trainers = User::factory(2)->create([
 //            'role' => 'trainer',
 //        ]);
 //
-//        // - 5 zwykłych użytkowników (domyślnie role = 'user')
-//        $clients = User::factory(5)->create();
+        // - 5 zwykłych użytkowników (domyślnie role = 'user')
+        $clients = User::factory(5)->create();
 
         // 2) Kilka grup mięśniowych
         // Możesz też zrobić to przez MuscleGroupFactory::factory(5)->create()
