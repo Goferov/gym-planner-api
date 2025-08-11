@@ -2,7 +2,7 @@
 
 A RESTful API for a personal training platform where **trainers** build workout plans, assign them to **clients**, and track execution and progress. Pairs with the React frontend.
 
-**Frontend repo:** https://github.com/Goferov/gym-planner-trainer
+**Frontend repo:** https://github.com/Goferov/gym-planner
 
 ---
 
